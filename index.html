@@ -230,7 +230,7 @@
   </div>
 
   <footer>
-    <div><strong>HMCC Tee Time Tracker</strong> · v1.7</div>
+    <div><strong>HMCC Tee Time Tracker</strong> · v1.8</div>
     <div style="margin-top:5px">Saves on this device automatically. Adding new features won't erase your data — but when you open an updated version, tap <strong>Backup</strong> here first, then <strong>Restore</strong> it in the new file to carry everything over.</div>
   </footer>
 </div>
@@ -412,6 +412,7 @@
   }
   function saveMember(data){
     var nm=(data.name||"").trim(); if(!nm) return;
+    if(data.id && !ui.admin){ alert("Only an admin can edit a member's info. Tap the ⛳ flag five times to unlock admin."); return; }
     if(data.id){
       state.players=state.players.map(function(p){ return p.id===data.id?Object.assign({},p,{name:nm,phone:(data.phone||"").trim(),hcp:(data.hcp||"").trim(),avatar:data.avatar||null}):p; });
     } else {
@@ -462,9 +463,9 @@
     if(banner){
       if(!ui.owner){ banner.innerHTML=""; }
       else if(ui.admin){
-        banner.innerHTML='<div class="admin-note">🔓 <strong>Admin mode on</strong> — tap ✕ next to a name to remove them. <button class="link" data-act="setpin">Set / change PIN</button> · <button class="link" data-act="lock">Lock</button> · <button class="link" data-act="release">Hide on this device</button></div>';
+        banner.innerHTML='<div class="admin-note">🔓 <strong>Admin mode on</strong> — only you can edit ✏️ or remove ✕ members. <button class="link" data-act="setpin">Set / change PIN</button> · <button class="link" data-act="lock">Lock</button> · <button class="link" data-act="release">Hide on this device</button></div>';
       } else {
-        banner.innerHTML='<div class="admin-note locked">🔒 Removing members is locked. <button class="link" data-act="unlock">Unlock as admin</button></div>';
+        banner.innerHTML='<div class="admin-note locked">🔒 Members are locked — editing and removing is admin-only. Anyone can still add a member. <button class="link" data-act="unlock">Unlock as admin</button></div>';
       }
     }
 
@@ -478,10 +479,11 @@
           var tel=(p.phone||"").replace(/[^0-9+]/g,"");
           var phone = p.phone ? '<a class="m-phone" href="tel:'+esc(tel)+'">'+esc(p.phone)+'</a>' : '<span class="m-phone empty">No number</span>';
           var hcp = p.hcp ? '<span class="hcp">Hcp '+esc(p.hcp)+'</span>' : '';
+          var edit = ui.admin ? '<button class="m-act" data-medit="'+p.id+'" title="Edit">✏️</button>' : '';
           var rm = ui.admin ? '<button class="m-act" data-rm="'+p.id+'" title="Remove">✕</button>' : '';
           return '<div class="member">'+avatarHTML(p,40)+
                  '<div class="m-info"><div class="m-name">'+esc(p.name)+hcp+'</div>'+phone+'</div>'+
-                 '<div class="m-acts"><button class="m-act" data-medit="'+p.id+'" title="Edit">✏️</button>'+rm+'</div></div>';
+                 '<div class="m-acts">'+edit+rm+'</div></div>';
         }).join("");
       }
     }
