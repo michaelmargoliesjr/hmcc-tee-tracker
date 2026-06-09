@@ -223,7 +223,7 @@
   </div>
 
   <footer>
-    <div><strong>HMCC Tee Time Tracker</strong> · v1.1</div>
+    <div><strong>HMCC Tee Time Tracker</strong> · v1.2</div>
     <div style="margin-top:5px">Saves on this device automatically. Adding new features won't erase your data — but when you open an updated version, tap <strong>Backup</strong> here first, then <strong>Restore</strong> it in the new file to carry everything over.</div>
   </footer>
 </div>
@@ -261,7 +261,8 @@
     if(d<=6) return {text:"in "+d+" days",tone:"soon"};
     return {text:"in "+d+" days",tone:"far"};
   }
-  function inCount(t){ var n=0,r=t.rsvp||{}; for(var k in r){ if(r[k]==="in") n++; } return n; }
+  function inCount(t){ var n=0,r=t.rsvp||{}; for(var k in r){ if(r[k]==="in") n++; } if(t.host!==false) n++; return n; }
+  function memberInNames(t){ return state.players.filter(function(p){ return t.rsvp&&t.rsvp[p.id]==="in"; }).map(function(p){return p.name;}); }
   function sortedTimes(){ return state.teeTimes.slice().sort(function(a,b){ return (a.date+(a.time||"")).localeCompare(b.date+(b.time||"")); }); }
   function upcoming(){ return sortedTimes().filter(function(t){return daysUntil(t.date)>=0;}); }
   function past(){ return sortedTimes().filter(function(t){return daysUntil(t.date)<0;}).reverse(); }
@@ -350,9 +351,7 @@
     if(data.id){
       state.teeTimes=state.teeTimes.map(function(t){ return t.id===data.id?Object.assign({},t,data):t; });
     } else {
-      var rsvp={};
-      if(state.meId && playerById(state.meId)) rsvp[state.meId]="in";
-      state.teeTimes.push({id:uid(),course:data.course,date:data.date,time:data.time,size:data.size,notes:data.notes,rsvp:rsvp});
+      state.teeTimes.push({id:uid(),course:data.course,date:data.date,time:data.time,size:data.size,notes:data.notes,rsvp:{},host:true});
     }
     ui.formOpen=false; ui.editingId=null; save(); renderAll();
   }
@@ -409,7 +408,7 @@
     reader.readAsDataURL(file);
   }
 
-  function setMe(id){ state.meId = (state.meId===id? null : id); save(); renderAll(); }
+  function toggleHost(id){ var t=teeById(id); if(!t) return; t.host=(t.host===false)?true:false; save(); renderList(); renderAlert(); }
 
   function openMemberForm(id){
     ui.memberFormOpen=true; ui.editingMemberId=id||null;
@@ -484,11 +483,9 @@
           var tel=(p.phone||"").replace(/[^0-9+]/g,"");
           var phone = p.phone ? '<a class="m-phone" href="tel:'+esc(tel)+'">'+esc(p.phone)+'</a>' : '<span class="m-phone empty">No number</span>';
           var rm = ui.admin ? '<button class="m-act" data-rm="'+p.id+'" title="Remove">✕</button>' : '';
-          var meTag = state.meId===p.id ? ' <span class="you">you</span>' : '';
-          var meBtn = '<button class="m-act me-btn'+(state.meId===p.id?' on':'')+'" data-me="'+p.id+'" title="This is me — count me in on new tee times">'+(state.meId===p.id?'★':'☆')+'</button>';
           return '<div class="member">'+avatarHTML(p,40)+
-                 '<div class="m-info"><div class="m-name">'+esc(p.name)+meTag+'</div>'+phone+'</div>'+
-                 '<div class="m-acts">'+meBtn+'<button class="m-act" data-medit="'+p.id+'" title="Edit">✏️</button>'+rm+'</div></div>';
+                 '<div class="m-info"><div class="m-name">'+esc(p.name)+'</div>'+phone+'</div>'+
+                 '<div class="m-acts"><button class="m-act" data-medit="'+p.id+'" title="Edit">✏️</button>'+rm+'</div></div>';
         }).join("");
       }
     }
@@ -510,7 +507,7 @@
     var u=urgency(t.date), ins=inCount(t), size=t.size||4, need=size-ins;
     var cls="tee t-"+u.tone;
     var fillW=Math.min(100,(ins/size)*100);
-    var label=ins+"/"+size+" in"+(ins>=size?" · full ⛳":(need>0?" · need "+need:""));
+    var label=ins+"/"+size+" in"+(ins>=size?" · full ⛳":(need>0?" · "+need+" open":""));
     var h='<div class="'+cls+'">';
     h+='<div class="tee-top"><div>';
     h+='<div class="course-row">📍 <span class="course">'+esc(t.course)+'</span></div>';
@@ -524,12 +521,13 @@
     h+='<button class="manage" data-exp="'+t.id+'">'+(ui.expanded[t.id]?"Hide RSVPs ▴":"Manage RSVPs ▾")+'</button>';
     if(ui.expanded[t.id]){
       h+='<div class="rsvp-wrap">';
-      if(!state.players.length){ h+='<span class="empty">Add players to the crew first.</span>'; }
+      h+='<button class="rsvp '+(t.host!==false?"in":"out")+'" data-host="'+t.id+'"><span class="nm">🧍 You (organizer)</span><span class="st">'+(t.host!==false?"PLAYING":"NOT IN")+'</span></button>';
+      if(!state.players.length){ h+='<span class="empty">Add the rest of the crew to track their RSVPs.</span>'; }
       state.players.forEach(function(p){
         var st=(t.rsvp&&t.rsvp[p.id])||"";
         h+='<button class="rsvp '+st+'" data-rsvp="'+t.id+'|'+p.id+'">'+avatarHTML(p,22)+'<span class="nm">'+esc(p.name)+'</span><span class="st">'+STLABEL[st]+'</span></button>';
       });
-      if(state.players.length) h+='<div class="legend">Tap a name to cycle: — → IN → MAYBE → OUT</div>';
+      h+='<div class="legend">You (the creator) count as 1 spot — tap "You (organizer)" to toggle if you\u2019re not playing. Tap a name to cycle: — → IN → MAYBE → OUT</div>';
       h+='</div>';
     }
     h+='</div>';
@@ -601,9 +599,11 @@
     if(!up.length){ txt="No upcoming tee times yet."; }
     else{
       txt="Upcoming tee times:\n\n"+up.map(function(t){
-        var ins=state.players.filter(function(p){ return t.rsvp&&t.rsvp[p.id]==="in"; }).map(function(p){return p.name;});
-        var need=(t.size||4)-ins.length;
-        return "⛳ "+fmtDate(t.date)+" "+fmtTime(t.time)+" — "+t.course+"\n   In: "+(ins.join(", ")||"nobody yet")+(need>0?"  (need "+need+" more)":"  ✅ full");
+        var ins=memberInNames(t);
+        var host=(t.host!==false);
+        var need=(t.size||4)-ins.length-(host?1:0);
+        var inList=(host?("you"+(ins.length?", ":"")):"")+ins.join(", ");
+        return "⛳ "+fmtDate(t.date)+" "+fmtTime(t.time)+" — "+t.course+"\n   In: "+(inList||"nobody yet")+(need>0?"  ("+need+" open)":"  ✅ full");
       }).join("\n\n");
     }
     var done=function(){ var l=document.getElementById("copyLbl"); var b=document.getElementById("copyBtn"); l.textContent="Copied"; b.firstChild.textContent="✓ "; setTimeout(function(){ l.textContent="Group text"; b.firstChild.textContent="📋 "; },1800); };
@@ -624,8 +624,9 @@
   }
   function addToCalendar(id){
     var t=teeById(id); if(!t) return;
-    var ins=state.players.filter(function(p){ return t.rsvp&&t.rsvp[p.id]==="in"; }).map(function(p){return p.name;});
-    var desc="Group: "+(ins.length?ins.join(", "):"TBD")+" ("+ins.length+"/"+(t.size||4)+" in)";
+    var ins=memberInNames(t);
+    var names=(t.host!==false?["you"]:[]).concat(ins);
+    var desc="Group: "+(names.length?names.join(", "):"TBD")+" ("+inCount(t)+"/"+(t.size||4)+" in)";
     var L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//HMCC Tee Time Tracker//EN","CALSCALE:GREGORIAN","BEGIN:VEVENT","UID:"+t.id+"@hmcc","DTSTAMP:"+fmtICS(new Date())];
     if(t.time){
       var start=new Date(t.date+"T"+t.time+":00"); var end=new Date(start.getTime()+4.5*3600000);
@@ -649,8 +650,7 @@
   }
   function textCrew(id){
     var t=teeById(id); if(!t) return;
-    var ins=state.players.filter(function(p){ return t.rsvp&&t.rsvp[p.id]==="in"; }).map(function(p){return p.name;});
-    var body="⛳ HMCC golf — "+t.course+" "+fmtDate(t.date)+(t.time?(" "+fmtTime(t.time)):"")+". "+ins.length+"/"+(t.size||4)+" in"+(ins.length?(" ("+ins.join(", ")+")"):"")+". You playing?";
+    var body="⛳ HMCC golf — "+t.course+" "+fmtDate(t.date)+(t.time?(" "+fmtTime(t.time)):"")+". "+inCount(t)+"/"+(t.size||4)+" in. You playing?";
     openSms(phonesOf(state.players),body);
   }
   function nudgeTee(id){
@@ -683,10 +683,10 @@
   document.getElementById("rosterToggle").addEventListener("click",function(){ ui.rosterOpen=!ui.rosterOpen; renderRoster(); });
   document.getElementById("addMemberBtn").addEventListener("click",function(){ openMemberForm(null); });
   document.getElementById("crewList").addEventListener("click",function(e){
-    var t=e.target; while(t&&t!==this&&!(t.getAttribute&&(t.getAttribute("data-medit")||t.getAttribute("data-rm")||t.getAttribute("data-me")))) t=t.parentNode;
+    var t=e.target; while(t&&t!==this&&!(t.getAttribute&&(t.getAttribute("data-medit")||t.getAttribute("data-rm")))) t=t.parentNode;
     if(!t||t===this) return;
-    var ed=t.getAttribute("data-medit"), rm=t.getAttribute("data-rm"), me=t.getAttribute("data-me");
-    if(ed) openMemberForm(ed); else if(rm) removePlayer(rm); else if(me) setMe(me);
+    var ed=t.getAttribute("data-medit"), rm=t.getAttribute("data-rm");
+    if(ed) openMemberForm(ed); else if(rm) removePlayer(rm);
   });
   document.getElementById("adminBtn").addEventListener("click",function(){ toggleAdmin(); });
   document.getElementById("rosterBody").addEventListener("click",function(e){
@@ -722,14 +722,15 @@
   document.getElementById("showForm").addEventListener("click",function(){ ui.formOpen=true; ui.editingId=null; ui.filter="upcoming"; renderTabs(); renderForm(); });
 
   document.getElementById("list").addEventListener("click",function(e){
-    var t=e.target; while(t && t!==this && !(t.getAttribute&&(t.getAttribute("data-edit")||t.getAttribute("data-del")||t.getAttribute("data-exp")||t.getAttribute("data-rsvp")||t.getAttribute("data-cal")||t.getAttribute("data-text")||t.getAttribute("data-nudge")))){ t=t.parentNode; }
+    var t=e.target; while(t && t!==this && !(t.getAttribute&&(t.getAttribute("data-edit")||t.getAttribute("data-del")||t.getAttribute("data-exp")||t.getAttribute("data-rsvp")||t.getAttribute("data-host")||t.getAttribute("data-cal")||t.getAttribute("data-text")||t.getAttribute("data-nudge")))){ t=t.parentNode; }
     if(!t||t===this) return;
-    var ed=t.getAttribute("data-edit"), del=t.getAttribute("data-del"), exp=t.getAttribute("data-exp"), rs=t.getAttribute("data-rsvp");
+    var ed=t.getAttribute("data-edit"), del=t.getAttribute("data-del"), exp=t.getAttribute("data-exp"), rs=t.getAttribute("data-rsvp"), host=t.getAttribute("data-host");
     var cal=t.getAttribute("data-cal"), txt=t.getAttribute("data-text"), nud=t.getAttribute("data-nudge");
     if(ed){ ui.formOpen=true; ui.editingId=ed; renderForm(); renderTabs(); var fm=document.getElementById("formMount"); if(fm&&fm.scrollIntoView) fm.scrollIntoView({behavior:"smooth",block:"center"}); }
     else if(del){ if(confirm("Delete this tee time?")) deleteTee(del); }
     else if(exp){ ui.expanded[exp]=!ui.expanded[exp]; renderList(); }
     else if(rs){ var parts=rs.split("|"); cycleRsvp(parts[0],parts[1]); }
+    else if(host){ toggleHost(host); }
     else if(cal){ addToCalendar(cal); }
     else if(txt){ textCrew(txt); }
     else if(nud){ nudgeTee(nud); }
