@@ -214,27 +214,6 @@
     </div>
   </section>
 
-  <section class="card">
-    <div class="sec-head">
-      <button class="sec-toggle" id="notifToggle">🔔 Notifications <span class="ndot" id="notifBadge"></span> <span id="notifChev" style="margin-left:auto">▾</span></button>
-    </div>
-    <div class="roster-body" id="notifBody" style="display:none">
-      <div class="setting-row">
-        <div>
-          <div class="setting-title">Pop-up alerts</div>
-          <div class="setting-sub">System notification when the list changes on this device</div>
-        </div>
-        <button class="toggle" id="notifEnable" aria-label="Toggle notifications"></button>
-      </div>
-      <div class="checks">
-        <label class="check"><input type="checkbox" id="notifJoin"> Someone joins</label>
-        <label class="check"><input type="checkbox" id="notifDrop"> Someone drops out</label>
-      </div>
-      <div class="act-head">Recent activity <button class="link" id="clearAct">Clear</button></div>
-      <div id="activityLog"></div>
-    </div>
-  </section>
-
   <div class="tabs" id="tabs">
     <button class="tab active" data-f="upcoming">Upcoming (0)</button>
     <button class="tab" data-f="past">Past (0)</button>
@@ -251,7 +230,7 @@
   </div>
 
   <footer>
-    <div><strong>HMCC Tee Time Tracker</strong> · v1.6</div>
+    <div><strong>HMCC Tee Time Tracker</strong> · v1.7</div>
     <div style="margin-top:5px">Saves on this device automatically. Adding new features won't erase your data — but when you open an updated version, tap <strong>Backup</strong> here first, then <strong>Restore</strong> it in the new file to carry everything over.</div>
   </footer>
 </div>
@@ -266,7 +245,7 @@
   var STLABEL = {"":"—","in":"IN","maybe":"MAYBE","out":"OUT"};
 
   var state = { players:[], teeTimes:[], meId:null };
-  var ui = { filter:"upcoming", rosterOpen:false, formOpen:false, editingId:null, expanded:{}, admin:false, owner:false, notifOpen:false, memberFormOpen:false, editingMemberId:null };
+  var ui = { filter:"upcoming", rosterOpen:false, formOpen:false, editingId:null, expanded:{}, admin:false, owner:false, memberFormOpen:false, editingMemberId:null };
 
   /* ---------- persistence ---------- */
   function load(){
@@ -327,52 +306,37 @@
   function claimOwner(){ try{ localStorage.setItem("hmcc_owner","1"); }catch(e){} ui.owner=true; if(!getPin()) ui.admin=true; ui.rosterOpen=true; renderAll(); }
   function releaseOwner(){ if(!confirm("Hide the Admin button on this device? You can re-enable it by tapping the ⛳ flag 5 times.")) return; try{ localStorage.removeItem("hmcc_owner"); }catch(e){} ui.owner=false; ui.admin=false; renderAll(); }
 
-  /* ---------- notifications + activity ---------- */
-  var KEY_NOTIF="hmcc_notif", KEY_ACT="hmcc_activity", KEY_SEEN="hmcc_act_seen";
-  var notif={enabled:false,onJoin:true,onDrop:true};
-  var activity=[];
-  function loadNotif(){ try{ var r=localStorage.getItem(KEY_NOTIF); if(r){ var d=JSON.parse(r); notif.enabled=!!d.enabled; notif.onJoin=d.onJoin!==false; notif.onDrop=d.onDrop!==false; } }catch(e){} }
-  function saveNotif(){ try{ localStorage.setItem(KEY_NOTIF,JSON.stringify(notif)); }catch(e){} }
-  function loadActivity(){ try{ var r=localStorage.getItem(KEY_ACT); if(r) activity=JSON.parse(r)||[]; }catch(e){ activity=[]; } }
-  function saveActivity(){ try{ localStorage.setItem(KEY_ACT,JSON.stringify(activity.slice(0,40))); }catch(e){} }
-  function lastSeen(){ try{ return +localStorage.getItem(KEY_SEEN)||0; }catch(e){ return 0; } }
-  function markSeen(){ try{ localStorage.setItem(KEY_SEEN,String(Date.now())); }catch(e){} }
-  function unreadCount(){ var s=lastSeen(); var n=0; for(var i=0;i<activity.length;i++){ if(activity[i].ts>s) n++; } return n; }
-  function actTime(ts){ try{ return new Date(ts).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}); }catch(e){ return ""; } }
+  /* ---------- text the group on RSVP join / drop ---------- */
+  function autoText(recips, body){
+    var nums=phonesOf(recips);
+    if(nums.length) openSms(nums, body);
+  }
+  function textOnJoin(t, actorId){
+    if(daysUntil(t.date)<0) return;
+    var p=playerById(actorId); if(!p) return;
+    var recips=membersInTee(t).filter(function(m){ return m.id!==actorId; });
+    var open=(t.size||4)-inCount(t);
+    var body="⛳ "+p.name+" is IN — "+t.course+" "+fmtDate(t.date)+(t.time?(" "+fmtTime(t.time)):"")+". Now "+inCount(t)+"/"+(t.size||4)+(open>0?(", "+open+" open"):", full ⛳")+".";
+    autoText(recips, body);
+  }
+  function textOnDrop(t, actorId){
+    if(daysUntil(t.date)<0) return;
+    var p=playerById(actorId); if(!p) return;
+    var map={};
+    membersInTee(t).concat(nudgeTargets(t)).forEach(function(m){ if(m.id!==actorId) map[m.id]=m; });
+    var recips=Object.keys(map).map(function(k){return map[k];});
+    var open=(t.size||4)-inCount(t);
+    var body="⛳ "+p.name+" dropped out — "+t.course+" "+fmtDate(t.date)+(t.time?(" "+fmtTime(t.time)):"")+". Now "+inCount(t)+"/"+(t.size||4)+", "+open+" open. Want the spot? 👋";
+    autoText(recips, body);
+  }
 
-  function logActivity(kind,p,t){
-    if(!p||!t) return;
-    activity.unshift({kind:kind,who:p.name,course:t.course,date:t.date,time:t.time,ts:Date.now()});
-    if(activity.length>40) activity=activity.slice(0,40);
-    saveActivity(); fireNotification(kind,p,t);
-  }
-  function fireNotification(kind,p,t){
-    if(!notif.enabled) return;
-    if(kind==="join"&&!notif.onJoin) return;
-    if(kind==="drop"&&!notif.onDrop) return;
-    if(typeof Notification==="undefined"||Notification.permission!=="granted") return;
-    var verb=kind==="join"?"joined":"dropped out of";
-    try{ new Notification("⛳ HMCC Tee Times",{ body:p.name+" "+verb+" "+fmtDate(t.date)+" "+fmtTime(t.time)+" · "+t.course }); }catch(e){}
-  }
-  function enableNotifications(){
-    if(typeof Notification==="undefined"){ alert("This browser doesn't support pop-up alerts, but the activity log below still records every join and drop."); return; }
-    if(Notification.permission==="granted"){ notif.enabled=!notif.enabled; saveNotif(); renderNotif(); return; }
-    if(Notification.permission==="denied"){ alert("Pop-up alerts are blocked for this page in your browser settings. The activity log will still record changes."); notif.enabled=false; saveNotif(); renderNotif(); return; }
-    Notification.requestPermission().then(function(perm){
-      notif.enabled=(perm==="granted"); saveNotif(); renderNotif();
-      if(perm==="granted"){ try{ new Notification("⛳ HMCC Tee Times",{body:"Alerts on — you'll be pinged when someone joins or drops."}); }catch(e){} }
-    });
-  }
 
   function removePlayer(id){
     if(!ui.admin) return;
     var p=playerById(id);
     if(!confirm("Remove "+(p?p.name:"this member")+" from the crew?")) return;
     state.players=state.players.filter(function(pl){return pl.id!==id;});
-    state.teeTimes.forEach(function(t){
-      if(t.rsvp&&t.rsvp[id]==="in"&&daysUntil(t.date)>=0) logActivity("drop",p,t);
-      if(t.rsvp) delete t.rsvp[id];
-    });
+    state.teeTimes.forEach(function(t){ if(t.rsvp) delete t.rsvp[id]; });
     save(); renderAll();
   }
   function saveTee(data){
@@ -388,10 +352,10 @@
     var t=null; for(var i=0;i<state.teeTimes.length;i++){ if(state.teeTimes[i].id===teeId){t=state.teeTimes[i];break;} }
     if(!t) return; if(!t.rsvp) t.rsvp={};
     var cur=t.rsvp[playerId]||""; var next=CYCLE[(CYCLE.indexOf(cur)+1)%CYCLE.length]; t.rsvp[playerId]=next;
-    var p=playerById(playerId);
-    if(next==="in"&&cur!=="in") logActivity("join",p,t);
-    else if(cur==="in"&&next!=="in") logActivity("drop",p,t);
-    save(); renderList(); renderAlert(); renderNotif();
+    var joined=(next==="in"&&cur!=="in"), dropped=(cur==="in"&&next!=="in");
+    save(); renderList(); renderAlert();
+    if(joined) textOnJoin(t,playerId);
+    else if(dropped) textOnDrop(t,playerId);
   }
 
   /* ---------- render ---------- */
@@ -603,27 +567,7 @@
     document.getElementById("fCancel").addEventListener("click",function(){ ui.formOpen=false; ui.editingId=null; renderForm(); renderTabs(); });
   }
 
-  function renderNotif(){
-    var badge=document.getElementById("notifBadge");
-    if(badge){ badge.className="ndot"+(unreadCount()>0?" show":""); }
-    document.getElementById("notifChev").textContent=ui.notifOpen?"▴":"▾";
-    document.getElementById("notifBody").style.display=ui.notifOpen?"block":"none";
-    var tg=document.getElementById("notifEnable"); if(tg) tg.classList.toggle("on",notif.enabled);
-    var j=document.getElementById("notifJoin"), d=document.getElementById("notifDrop");
-    if(j) j.checked=notif.onJoin; if(d) d.checked=notif.onDrop;
-    var log=document.getElementById("activityLog");
-    if(log){
-      if(!activity.length){ log.innerHTML='<div class="empty">No activity yet. Joins and drops will appear here.</div>'; }
-      else{
-        log.innerHTML=activity.map(function(a){
-          var icon=a.kind==="join"?"✅":"⚠️", verb=a.kind==="join"?"joined":"dropped out";
-          return '<div class="act '+a.kind+'"><span class="ai">'+icon+'</span><div><div><strong>'+esc(a.who)+'</strong> '+verb+' — '+esc(fmtDate(a.date))+' '+esc(fmtTime(a.time))+'</div><div class="at">'+esc(a.course)+' · '+actTime(a.ts)+'</div></div></div>';
-        }).join("");
-      }
-    }
-  }
-
-  function renderAll(){ renderAlert(); renderRoster(); renderNotif(); renderTabs(); renderForm(); renderList(); }
+  function renderAll(){ renderAlert(); renderRoster(); renderTabs(); renderForm(); renderList(); }
 
   /* ---------- group text ---------- */
   function copySummary(){
@@ -799,7 +743,7 @@
     if(missing.length) setTimeout(function(){ alert("No number on file for: "+missing.join(", ")+" (not texted)."); },400);
   }
   function doBackup(){
-    var data=JSON.stringify({app:"HMCC Tee Time Tracker",version:1,exported:new Date().toISOString(),players:state.players,teeTimes:state.teeTimes,meId:state.meId||null,notif:notif},null,2);
+    var data=JSON.stringify({app:"HMCC Tee Time Tracker",version:1,exported:new Date().toISOString(),players:state.players,teeTimes:state.teeTimes,meId:state.meId||null},null,2);
     downloadFile("HMCC_backup_"+new Date().toISOString().slice(0,10)+".json","application/json",data);
   }
   function doRestore(file){
@@ -809,7 +753,6 @@
       if(!d||!Array.isArray(d.players)||!Array.isArray(d.teeTimes)){ alert("That doesn't look like a valid HMCC backup file."); return; }
       if(!confirm("Restore this backup? It will replace your current crew ("+state.players.length+") and tee times ("+state.teeTimes.length+") with the backup's "+d.players.length+" members and "+d.teeTimes.length+" tee times.")) return;
       state.players=d.players; state.teeTimes=d.teeTimes; state.meId=d.meId||null;
-      if(d.notif){ notif.enabled=!!d.notif.enabled; notif.onJoin=d.notif.onJoin!==false; notif.onDrop=d.notif.onDrop!==false; saveNotif(); }
       save(); renderAll(); alert("Backup restored — "+d.players.length+" members and "+d.teeTimes.length+" tee times.");
     };
     r.onerror=function(){ alert("Couldn't read that file."); };
@@ -832,17 +775,6 @@
     var act=b.getAttribute("data-act");
     if(act==="lock") lockAdmin(); else if(act==="unlock") unlockAdmin(); else if(act==="setpin") setPin(); else if(act==="release") releaseOwner();
   });
-
-  /* notifications */
-  document.getElementById("notifToggle").addEventListener("click",function(){
-    ui.notifOpen=!ui.notifOpen;
-    if(ui.notifOpen) markSeen();
-    renderNotif();
-  });
-  document.getElementById("notifEnable").addEventListener("click",enableNotifications);
-  document.getElementById("notifJoin").addEventListener("change",function(e){ notif.onJoin=e.target.checked; saveNotif(); });
-  document.getElementById("notifDrop").addEventListener("change",function(e){ notif.onDrop=e.target.checked; saveNotif(); });
-  document.getElementById("clearAct").addEventListener("click",function(){ if(confirm("Clear the activity log?")){ activity=[]; saveActivity(); markSeen(); renderNotif(); } });
 
   /* secret owner claim: tap the flag badge 5x */
   var tapN=0,tapT=null;
@@ -882,12 +814,9 @@
 
   /* ---------- init ---------- */
   load();
-  loadNotif();
-  loadActivity();
   ui.owner = isOwnerStored();
   if(/(?:^|[#&\/])(admin|owner)\b/i.test(location.hash)){ try{ localStorage.setItem("hmcc_owner","1"); }catch(e){} ui.owner=true; }
   if(ui.owner && !getPin()) ui.admin=true;
-  if(notif.enabled && (typeof Notification==="undefined" || Notification.permission!=="granted")) notif.enabled=false;
   renderAll();
   loadWeather();
 })();
