@@ -181,14 +181,14 @@
         <div class="sub">Tee times for the crew</div>
       </div>
     </div>
-    <button class="copy-btn" id="copyBtn" title="Copy a summary to paste into the group text">📋 <span id="copyLbl">Group text</span></button>
+    <button class="copy-btn" id="copyBtn" title="Text all crew members the upcoming tee times">💬 <span id="copyLbl">Group text</span></button>
   </header>
 
   <div id="alert"></div>
 
   <section class="card" id="weatherCard" style="display:none">
     <div class="wx-head">
-      <span class="wx-title">⛳ Course weather · 10538</span>
+      <span class="wx-title">⛳ Course weather · 10528</span>
       <button class="mini" id="wxRefresh" title="Refresh">↻</button>
     </div>
     <div class="wx-body">
@@ -249,7 +249,7 @@
   </div>
 
   <footer>
-    <div><strong>HMCC Tee Time Tracker</strong> · v1.4</div>
+    <div><strong>HMCC Tee Time Tracker</strong> · v1.5</div>
     <div style="margin-top:5px">Saves on this device automatically. Adding new features won't erase your data — but when you open an updated version, tap <strong>Backup</strong> here first, then <strong>Restore</strong> it in the new file to carry everything over.</div>
   </footer>
 </div>
@@ -638,8 +638,26 @@
   }
   function fallbackCopy(txt){ var ta=document.createElement("textarea"); ta.value=txt; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");}catch(e){} document.body.removeChild(ta); }
 
+  function groupTextAll(){
+    if(!state.players.length){ alert("Add your crew first — tap 👥 The Crew → Add member."); return; }
+    var nums=phonesOf(state.players);
+    if(!nums.length){ alert("No members have phone numbers saved yet. Tap ✏️ on a member to add one."); return; }
+    var up=upcoming().slice(0,6);
+    var txt;
+    if(!up.length){ txt="⛳ HMCC golf — no upcoming tee times on the board yet."; }
+    else{
+      txt="⛳ HMCC tee times:\n"+up.map(function(t){
+        var open=(t.size||4)-inCount(t);
+        return "• "+fmtDate(t.date)+(t.time?(" "+fmtTime(t.time)):"")+" — "+t.course+" ("+(open>0?(open+" open"):"full")+")";
+      }).join("\n");
+    }
+    openSms(nums,txt);
+    var missing=noPhoneNames(state.players);
+    if(missing.length) setTimeout(function(){ alert("No number on file for: "+missing.join(", ")+" (not texted)."); },400);
+  }
+
   /* ---------- weather (Open-Meteo, no key) ---------- */
-  var WX_LAT=40.928, WX_LON=-73.752;
+  var WX_LAT=40.969, WX_LON=-73.713;
   function wxCode(c){
     var m={0:["☀️","Clear"],1:["🌤️","Mostly clear"],2:["⛅","Partly cloudy"],3:["☁️","Overcast"],
       45:["🌫️","Fog"],48:["🌫️","Fog"],51:["🌦️","Light drizzle"],53:["🌦️","Drizzle"],55:["🌦️","Drizzle"],
@@ -654,7 +672,7 @@
     var c=d.current||{}, ci=wxCode(c.weather_code);
     now.innerHTML='<span class="wx-ico">'+ci[0]+'</span>'+
       '<div class="wx-temp">'+Math.round(c.temperature_2m)+'°</div>'+
-      '<div style="flex:1"><div class="wx-cond">'+ci[1]+'</div><div class="wx-sub">Feels '+Math.round(c.apparent_temperature)+'° · wind '+Math.round(c.wind_speed_10m)+' mph · Larchmont 10538</div></div>';
+      '<div style="flex:1"><div class="wx-cond">'+ci[1]+'</div><div class="wx-sub">Feels '+Math.round(c.apparent_temperature)+'° · wind '+Math.round(c.wind_speed_10m)+' mph · Harrison 10528</div></div>';
     var dd=d.daily||{}, t=dd.time||[], out="";
     for(var i=0;i<t.length;i++){
       var di=wxCode(dd.weather_code[i]);
@@ -818,7 +836,7 @@
     else if(nud){ nudgeTee(nud); }
   });
 
-  document.getElementById("copyBtn").addEventListener("click",copySummary);
+  document.getElementById("copyBtn").addEventListener("click",groupTextAll);
   document.getElementById("wxRefresh").addEventListener("click",loadWeather);
 
   document.getElementById("backupBtn").addEventListener("click",doBackup);
