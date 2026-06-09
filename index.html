@@ -79,6 +79,9 @@
   .m-phone.empty{color:#b3ac9b}
   .m-acts{display:flex;gap:6px;flex-shrink:0}
   .m-act{min-width:38px;min-height:38px;border-radius:8px;border:1px solid #e0d9c6;background:#f3efe2;display:grid;place-items:center;font-size:14px;color:#6e6857}
+  .me-btn{color:#b9b2a0;font-size:15px}
+  .me-btn.on{color:var(--gold);border-color:#e6c560;background:#fbf0d4}
+  .you{font-size:10px;font-weight:700;color:#fff;background:var(--green);border-radius:10px;padding:1px 7px;margin-left:6px;vertical-align:middle;letter-spacing:.02em}
   .upload{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--green);background:#eef3ec;border:1px solid #cfe0d4;border-radius:8px;padding:11px 13px;cursor:pointer;width:max-content}
   .photo-prev{display:flex;align-items:center;gap:12px;margin-top:10px}
   .photo-prev img{width:56px;height:56px;border-radius:50%;object-fit:cover;border:1px solid #e0d9c6}
@@ -220,7 +223,7 @@
   </div>
 
   <footer>
-    <div><strong>HMCC Tee Time Tracker</strong> · v1.0</div>
+    <div><strong>HMCC Tee Time Tracker</strong> · v1.1</div>
     <div style="margin-top:5px">Saves on this device automatically. Adding new features won't erase your data — but when you open an updated version, tap <strong>Backup</strong> here first, then <strong>Restore</strong> it in the new file to carry everything over.</div>
   </footer>
 </div>
@@ -234,15 +237,15 @@
   var CYCLE = ["","in","maybe","out"];
   var STLABEL = {"":"—","in":"IN","maybe":"MAYBE","out":"OUT"};
 
-  var state = { players:[], teeTimes:[] };
+  var state = { players:[], teeTimes:[], meId:null };
   var ui = { filter:"upcoming", rosterOpen:false, formOpen:false, editingId:null, expanded:{}, admin:false, owner:false, notifOpen:false, memberFormOpen:false, editingMemberId:null };
 
   /* ---------- persistence ---------- */
   function load(){
-    try{ var raw = localStorage.getItem(KEY); if(raw){ var d = JSON.parse(raw); state.players=d.players||[]; state.teeTimes=d.teeTimes||[]; } }catch(e){}
+    try{ var raw = localStorage.getItem(KEY); if(raw){ var d = JSON.parse(raw); state.players=d.players||[]; state.teeTimes=d.teeTimes||[]; state.meId=d.meId||null; } }catch(e){}
   }
   function save(){
-    try{ localStorage.setItem(KEY, JSON.stringify({players:state.players,teeTimes:state.teeTimes})); }catch(e){}
+    try{ localStorage.setItem(KEY, JSON.stringify({players:state.players,teeTimes:state.teeTimes,meId:state.meId||null})); }catch(e){}
   }
 
   /* ---------- helpers ---------- */
@@ -347,7 +350,9 @@
     if(data.id){
       state.teeTimes=state.teeTimes.map(function(t){ return t.id===data.id?Object.assign({},t,data):t; });
     } else {
-      state.teeTimes.push({id:uid(),course:data.course,date:data.date,time:data.time,size:data.size,notes:data.notes,rsvp:{}});
+      var rsvp={};
+      if(state.meId && playerById(state.meId)) rsvp[state.meId]="in";
+      state.teeTimes.push({id:uid(),course:data.course,date:data.date,time:data.time,size:data.size,notes:data.notes,rsvp:rsvp});
     }
     ui.formOpen=false; ui.editingId=null; save(); renderAll();
   }
@@ -403,6 +408,8 @@
     reader.onerror=function(){ cb(null); };
     reader.readAsDataURL(file);
   }
+
+  function setMe(id){ state.meId = (state.meId===id? null : id); save(); renderAll(); }
 
   function openMemberForm(id){
     ui.memberFormOpen=true; ui.editingMemberId=id||null;
@@ -477,9 +484,11 @@
           var tel=(p.phone||"").replace(/[^0-9+]/g,"");
           var phone = p.phone ? '<a class="m-phone" href="tel:'+esc(tel)+'">'+esc(p.phone)+'</a>' : '<span class="m-phone empty">No number</span>';
           var rm = ui.admin ? '<button class="m-act" data-rm="'+p.id+'" title="Remove">✕</button>' : '';
+          var meTag = state.meId===p.id ? ' <span class="you">you</span>' : '';
+          var meBtn = '<button class="m-act me-btn'+(state.meId===p.id?' on':'')+'" data-me="'+p.id+'" title="This is me — count me in on new tee times">'+(state.meId===p.id?'★':'☆')+'</button>';
           return '<div class="member">'+avatarHTML(p,40)+
-                 '<div class="m-info"><div class="m-name">'+esc(p.name)+'</div>'+phone+'</div>'+
-                 '<div class="m-acts"><button class="m-act" data-medit="'+p.id+'" title="Edit">✏️</button>'+rm+'</div></div>';
+                 '<div class="m-info"><div class="m-name">'+esc(p.name)+meTag+'</div>'+phone+'</div>'+
+                 '<div class="m-acts">'+meBtn+'<button class="m-act" data-medit="'+p.id+'" title="Edit">✏️</button>'+rm+'</div></div>';
         }).join("");
       }
     }
@@ -653,7 +662,7 @@
 
   /* ---------- backup / restore ---------- */
   function doBackup(){
-    var data=JSON.stringify({app:"HMCC Tee Time Tracker",version:1,exported:new Date().toISOString(),players:state.players,teeTimes:state.teeTimes,notif:notif},null,2);
+    var data=JSON.stringify({app:"HMCC Tee Time Tracker",version:1,exported:new Date().toISOString(),players:state.players,teeTimes:state.teeTimes,meId:state.meId||null,notif:notif},null,2);
     downloadFile("HMCC_backup_"+new Date().toISOString().slice(0,10)+".json","application/json",data);
   }
   function doRestore(file){
@@ -662,7 +671,7 @@
       var d; try{ d=JSON.parse(r.result); }catch(e){ alert("That file isn't readable as a backup."); return; }
       if(!d||!Array.isArray(d.players)||!Array.isArray(d.teeTimes)){ alert("That doesn't look like a valid HMCC backup file."); return; }
       if(!confirm("Restore this backup? It will replace your current crew ("+state.players.length+") and tee times ("+state.teeTimes.length+") with the backup's "+d.players.length+" members and "+d.teeTimes.length+" tee times.")) return;
-      state.players=d.players; state.teeTimes=d.teeTimes;
+      state.players=d.players; state.teeTimes=d.teeTimes; state.meId=d.meId||null;
       if(d.notif){ notif.enabled=!!d.notif.enabled; notif.onJoin=d.notif.onJoin!==false; notif.onDrop=d.notif.onDrop!==false; saveNotif(); }
       save(); renderAll(); alert("Backup restored — "+d.players.length+" members and "+d.teeTimes.length+" tee times.");
     };
@@ -674,10 +683,10 @@
   document.getElementById("rosterToggle").addEventListener("click",function(){ ui.rosterOpen=!ui.rosterOpen; renderRoster(); });
   document.getElementById("addMemberBtn").addEventListener("click",function(){ openMemberForm(null); });
   document.getElementById("crewList").addEventListener("click",function(e){
-    var t=e.target; while(t&&t!==this&&!(t.getAttribute&&(t.getAttribute("data-medit")||t.getAttribute("data-rm")))) t=t.parentNode;
+    var t=e.target; while(t&&t!==this&&!(t.getAttribute&&(t.getAttribute("data-medit")||t.getAttribute("data-rm")||t.getAttribute("data-me")))) t=t.parentNode;
     if(!t||t===this) return;
-    var ed=t.getAttribute("data-medit"), rm=t.getAttribute("data-rm");
-    if(ed) openMemberForm(ed); else if(rm) removePlayer(rm);
+    var ed=t.getAttribute("data-medit"), rm=t.getAttribute("data-rm"), me=t.getAttribute("data-me");
+    if(ed) openMemberForm(ed); else if(rm) removePlayer(rm); else if(me) setMe(me);
   });
   document.getElementById("adminBtn").addEventListener("click",function(){ toggleAdmin(); });
   document.getElementById("rosterBody").addEventListener("click",function(e){
