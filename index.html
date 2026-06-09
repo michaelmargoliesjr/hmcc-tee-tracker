@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="HMCC Tee Times" />
+<title>HMCC Tee Time Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --green:#2f6b4f; --green-dk:#1f4031; --gold:#b8862b; --red:#9c3d3d;
+    --cream:#f6f2e8; --card:#fffdf7; --line:#e6dfcd; --ink:#2c2a22; --muted:#8a8472;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{ -webkit-text-size-adjust:100%; text-size-adjust:100% }
+  body{
+    margin:0; font-family:'Outfit',system-ui,sans-serif; color:var(--ink);
+    background:linear-gradient(180deg,#f6f2e8 0%,#eee9da 100%); min-height:100vh; overflow-x:hidden;
+  }
+  input,select,button{font-family:inherit}
+  input,select{font-size:16px}            /* 16px stops iOS zoom-on-focus */
+  input:focus,select:focus{outline:2px solid #7fc49a; outline-offset:0}
+  button{-webkit-appearance:none;appearance:none;touch-action:manipulation;cursor:pointer}
+  ::placeholder{color:#b3ac9b}
+
+  .wrap{max-width:640px;margin:0 auto;padding:18px 16px 48px}
+
+  header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:11px}
+  .badge{width:40px;height:40px;border-radius:11px;background:var(--green);display:grid;place-items:center;font-size:21px;box-shadow:0 3px 8px rgba(47,107,79,.3)}
+  h1{font-family:'Fraunces',serif;font-size:clamp(20px,6vw,26px);font-weight:700;margin:0;color:var(--green-dk);letter-spacing:-.01em;line-height:1.05}
+  .sub{margin:2px 0 0;font-size:12.5px;color:var(--muted);font-weight:500}
+  .copy-btn{display:flex;align-items:center;gap:6px;min-height:40px;font-size:13px;font-weight:600;color:var(--green-dk);background:#fff;border:1px solid #ddd6c4;padding:8px 12px;border-radius:9px;white-space:nowrap}
+
+  .alert{display:flex;gap:10px;background:var(--green-dk);color:#eef3ec;padding:12px 14px;border-radius:12px;font-size:14px;margin-bottom:14px;box-shadow:0 4px 14px rgba(31,64,49,.18);line-height:1.5}
+  .alert .ico{flex-shrink:0;font-size:16px;margin-top:1px}
+  .alert .warn{margin-top:4px;font-size:13px;opacity:.92}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:4px;letter-spacing:.02em;color:#fff;background:var(--green)}
+  .pill.today{background:var(--red)} .pill.soon{background:var(--gold)} .pill.past{background:#9a9485}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:13px;margin-bottom:14px;overflow:hidden}
+  .sec-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px 9px 14px;flex-wrap:wrap}
+  .sec-toggle{flex:1;min-width:130px;text-align:left;background:none;border:none;font-family:'Fraunces',serif;font-size:15.5px;font-weight:600;color:var(--green-dk);display:flex;align-items:center;gap:8px;min-height:40px}
+  .sec-actions{display:flex;gap:6px;align-items:center}
+  .mini{min-height:38px;font-size:12.5px;font-weight:700;border-radius:8px;padding:8px 11px;border:1px solid #ddd6c4;background:#fff;color:#5a5648;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+  .mini.primary{background:var(--green);border-color:var(--green);color:#fff}
+  .mini.admin-on{background:#fbf0d4;border-color:#e6c560;color:#7a5a10}
+  .admin-note{font-size:12.5px;color:#6e6857;background:#f3efe2;border:1px solid #e6dfcd;border-radius:9px;padding:10px 12px;margin-bottom:11px;line-height:1.55}
+  .admin-note.locked{background:#efe9da}
+  .link{background:none;border:none;color:var(--green);font-weight:700;font-size:12.5px;padding:0;text-decoration:underline}
+
+  .ndot{display:none;width:9px;height:9px;border-radius:50%;background:var(--red);margin-left:2px}
+  .ndot.show{display:inline-block}
+  .setting-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:4px 0 12px}
+  .setting-title{font-size:14px;font-weight:600;color:var(--ink)}
+  .setting-sub{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4}
+  .toggle{width:48px;height:28px;border-radius:20px;border:none;background:#cfc8b6;position:relative;flex-shrink:0;transition:background .2s}
+  .toggle::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .toggle.on{background:var(--green)} .toggle.on::after{transform:translateX(20px)}
+  .checks{display:flex;gap:18px;flex-wrap:wrap;padding:0 0 4px}
+  .check{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;color:#5a5648}
+  .check input{width:18px;height:18px;accent-color:var(--green)}
+  .act-head{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;font-weight:700;color:#7a7460;text-transform:uppercase;letter-spacing:.03em;margin:14px 0 6px;border-top:1px solid #efe9da;padding-top:12px}
+  .act{display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0ebdd;font-size:13px;color:#4a463c}
+  .act:last-child{border-bottom:none}
+  .act .ai{flex-shrink:0;font-size:14px;line-height:1.4}
+  .act .at{font-size:11.5px;color:#a39c8a;margin-top:2px}
+
+  .member{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid #f0ebdd}
+  .member:last-child{border-bottom:none}
+  .av{border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid #e0d9c6;display:block}
+  .av-init{border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;flex-shrink:0}
+  .m-info{flex:1;min-width:0}
+  .m-name{font-size:14.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .m-phone{font-size:12.5px;color:var(--green);text-decoration:none}
+  .m-phone.empty{color:#b3ac9b}
+  .m-acts{display:flex;gap:6px;flex-shrink:0}
+  .m-act{min-width:38px;min-height:38px;border-radius:8px;border:1px solid #e0d9c6;background:#f3efe2;display:grid;place-items:center;font-size:14px;color:#6e6857}
+  .upload{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--green);background:#eef3ec;border:1px solid #cfe0d4;border-radius:8px;padding:11px 13px;cursor:pointer;width:max-content}
+  .photo-prev{display:flex;align-items:center;gap:12px;margin-top:10px}
+  .photo-prev img{width:56px;height:56px;border-radius:50%;object-fit:cover;border:1px solid #e0d9c6}
+
+  .tee-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}
+  .ta{min-height:36px;display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;border-radius:8px;padding:7px 11px;border:1px solid #ddd6c4;background:#fff;color:#5a5648}
+  .ta.amber{background:#fbf0d4;border-color:#e6c560;color:#7a5a10}
+  .data-row{display:flex;gap:8px;justify-content:center;align-items:center;margin-top:20px;flex-wrap:wrap}
+  .data-row .mini,.data-row label{cursor:pointer}
+  .count{font-family:'Outfit',sans-serif;font-size:12px;background:#e7efe8;color:var(--green);border-radius:20px;padding:1px 9px;font-weight:700}
+  .roster-body{padding:2px 14px 14px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .ptag{display:inline-flex;align-items:center;gap:7px;background:#f3efe2;border:1px solid #e0d9c6;border-radius:20px;padding:7px 11px;font-size:13.5px;font-weight:500}
+  .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+  .ptag .x{cursor:pointer;opacity:.55;font-weight:700;font-size:14px;line-height:1}
+  .adder{display:flex;gap:8px;flex-wrap:wrap}
+  .adder input{flex:1 1 130px;font-size:16px;padding:11px 12px;border:1px solid #ddd6c4;border-radius:8px;background:#fff;width:100%}
+
+  .tabs{display:flex;gap:7px;align-items:center;margin-bottom:12px;flex-wrap:wrap;row-gap:8px}
+  .tab{min-height:40px;font-size:13px;font-weight:600;padding:9px 14px;border-radius:9px;border:1px solid #ddd6c4;background:var(--card);color:#5a5648;display:inline-flex;align-items:center;justify-content:center}
+  .tab.active{background:var(--green);border-color:var(--green);color:#fff}
+  .add-tee{min-height:40px;margin-left:auto;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#fff;background:var(--gold);border:none;padding:9px 13px;border-radius:9px;box-shadow:0 2px 6px rgba(184,134,43,.3)}
+
+  .tee{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--green);border-radius:12px;padding:14px;margin-bottom:11px}
+  .tee.t-today{border-left-color:var(--red)} .tee.t-soon{border-left-color:var(--gold)} .tee.t-past{opacity:.62}
+  .tee-top{display:flex;justify-content:space-between;gap:10px}
+  .course-row{display:flex;align-items:center;gap:6px}
+  .course{font-family:'Fraunces',serif;font-size:17px;font-weight:600;color:#23382c}
+  .meta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:6px;font-size:13.5px;color:#6e6857;font-weight:500}
+  .meta span{display:inline-flex;align-items:center;gap:4px}
+  .notes{margin-top:7px;font-size:12.5px;color:var(--muted);font-style:italic}
+  .icons{display:flex;gap:6px;flex-shrink:0}
+  .icon{min-width:40px;min-height:40px;background:#f3efe2;border:1px solid #e0d9c6;border-radius:8px;display:grid;place-items:center;font-size:15px;color:#6e6857}
+
+  .status{display:flex;align-items:center;gap:9px;margin-top:12px}
+  .track{flex:1;height:7px;background:#ece6d6;border-radius:20px;overflow:hidden}
+  .fill{height:100%;border-radius:20px;transition:width .3s ease;background:var(--gold)}
+  .fill.full{background:var(--green)}
+  .fill-label{font-size:12px;font-weight:700;color:#5a5648;white-space:nowrap}
+
+  .manage{margin-top:11px;display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--green);background:none;border:none;padding:6px 0}
+  .rsvp-wrap{margin-top:10px;display:flex;flex-wrap:wrap;gap:7px}
+  .rsvp{min-height:40px;display:inline-flex;align-items:center;gap:7px;border:1px solid;border-radius:22px;padding:8px 12px;font-size:13.5px;background:#e7e2d5;border-color:#d8d2c2}
+  .rsvp .nm{color:#3a352c;font-weight:600}
+  .rsvp .st{font-size:10.5px;font-weight:800;letter-spacing:.04em;color:#8a8472}
+  .rsvp.in{background:#dff0e4;border-color:#7fc49a} .rsvp.in .st{color:#1f5b3c}
+  .rsvp.maybe{background:#fbf0d4;border-color:#e6c560} .rsvp.maybe .st{color:#8a6410}
+  .rsvp.out{background:#f6dede;border-color:#dd9a9a} .rsvp.out .st{color:#8a2b2b}
+  .legend{width:100%;font-size:11.5px;color:#a39c8a;margin-top:3px}
+
+  .form{background:var(--card);border:1px solid #d8cfb8;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 4px 16px rgba(0,0,0,.06)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field.full{grid-column:1 / -1}
+  label .lab{font-size:11.5px;font-weight:700;color:#7a7460;text-transform:uppercase;letter-spacing:.03em}
+  .form input,.form select{font-size:16px;padding:11px 12px;border:1px solid #ddd6c4;border-radius:8px;background:#fff;width:100%;color:var(--ink)}
+  .form-actions{display:flex;gap:8px;margin-top:14px}
+  .btn{min-height:42px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:700;color:#fff;background:var(--green);border:none;padding:10px 16px;border-radius:8px}
+  .btn.grow{flex:1}
+  .btn[disabled]{opacity:.5}
+  .btn.ghost{color:#6e6857;background:none;border:1px solid #ddd6c4;font-weight:600}
+  .btn.gold{background:var(--gold)}
+
+  .empty{font-size:13px;color:#a39c8a;font-style:italic}
+  .big-empty{text-align:center;padding:34px 0;color:#a39c8a}
+  .big-empty .e-ico{font-size:30px;opacity:.5}
+  footer{text-align:center;font-size:11.5px;color:#b0a994;margin-top:22px;line-height:1.6}
+
+  @media (max-width:440px){
+    .add-tee{margin-left:0;width:100%;justify-content:center;order:3}
+    .tabs .tab{flex:1}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <span class="badge">⛳</span>
+      <div>
+        <h1>HMCC Tee Time Tracker</h1>
+        <div class="sub">Tee times for the crew</div>
+      </div>
+    </div>
+    <button class="copy-btn" id="copyBtn" title="Copy a summary to paste into the group text">📋 <span id="copyLbl">Group text</span></button>
+  </header>
+
+  <div id="alert"></div>
+
+  <section class="card">
+    <div class="sec-head">
+      <button class="sec-toggle" id="rosterToggle">👥 The Crew <span class="count" id="crewCount">0</span> <span id="rosterChev">▾</span></button>
+      <div class="sec-actions">
+        <button class="mini" id="adminBtn" style="display:none">🔒 Admin</button>
+        <button class="mini primary" id="addMemberBtn">＋ Add member</button>
+      </div>
+    </div>
+    <div class="roster-body" id="rosterBody" style="display:none">
+      <div id="adminBanner"></div>
+      <div id="memberFormMount"></div>
+      <div id="crewList"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="sec-head">
+      <button class="sec-toggle" id="notifToggle">🔔 Notifications <span class="ndot" id="notifBadge"></span> <span id="notifChev" style="margin-left:auto">▾</span></button>
+    </div>
+    <div class="roster-body" id="notifBody" style="display:none">
+      <div class="setting-row">
+        <div>
+          <div class="setting-title">Pop-up alerts</div>
+          <div class="setting-sub">System notification when the list changes on this device</div>
+        </div>
+        <button class="toggle" id="notifEnable" aria-label="Toggle notifications"></button>
+      </div>
+      <div class="checks">
+        <label class="check"><input type="checkbox" id="notifJoin"> Someone joins</label>
+        <label class="check"><input type="checkbox" id="notifDrop"> Someone drops out</label>
+      </div>
+      <div class="act-head">Recent activity <button class="link" id="clearAct">Clear</button></div>
+      <div id="activityLog"></div>
+    </div>
+  </section>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-f="upcoming">Upcoming (0)</button>
+    <button class="tab" data-f="past">Past (0)</button>
+    <button class="tab" data-f="all">All</button>
+    <button class="add-tee" id="showForm">＋ Add tee time</button>
+  </div>
+
+  <div id="formMount"></div>
+  <div id="list"></div>
+
+  <div class="data-row">
+    <button class="mini" id="backupBtn">⬇️ Backup</button>
+    <label class="mini" id="restoreLbl">⬆️ Restore<input id="restoreInput" type="file" accept="application/json,.json" style="display:none"></label>
+  </div>
+
+  <footer>
+    <div><strong>HMCC Tee Time Tracker</strong> · v1.0</div>
+    <div style="margin-top:5px">Saves on this device automatically. Adding new features won't erase your data — but when you open an updated version, tap <strong>Backup</strong> here first, then <strong>Restore</strong> it in the new file to carry everything over.</div>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var KEY = "hmcc_tee_v1";
+  var KEY_PIN = "hmcc_admin_pin";
+  var PALETTE = ["#2f6b4f","#b8862b","#9c3d3d","#3a5e8c","#6b4f8c","#5a7a2b","#a85d2b","#2b7a78","#8c3d6b","#4a4a4a"];
+  var CYCLE = ["","in","maybe","out"];
+  var STLABEL = {"":"—","in":"IN","maybe":"MAYBE","out":"OUT"};
+
+  var state = { players:[], teeTimes:[] };
+  var ui = { filter:"upcoming", rosterOpen:false, formOpen:false, editingId:null, expanded:{}, admin:false, owner:false, notifOpen:false, memberFormOpen:false, editingMemberId:null };
+
+  /* ---------- persistence ---------- */
+  function load(){
+    try{ var raw = localStorage.getItem(KEY); if(raw){ var d = JSON.parse(raw); state.players=d.players||[]; state.teeTimes=d.teeTimes||[]; } }catch(e){}
+  }
+  function save(){
+    try{ localStorage.setItem(KEY, JSON.stringify({players:state.players,teeTimes:state.teeTimes})); }catch(e){}
+  }
+
+  /* ---------- helpers ---------- */
+  function uid(){ return Math.random().toString(36).slice(2,9); }
+  function esc(s){ return (s==null?"":String(s)).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+  function fmtDate(ds){ if(!ds) return ""; var d=new Date(ds+"T00:00:00"); return d.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}); }
+  function fmtTime(t){ if(!t) return ""; var p=t.split(":"); var h=+p[0],m=+p[1]; var ap=h>=12?"PM":"AM"; var hr=h%12===0?12:h%12; return hr+":"+(m<10?"0"+m:m)+" "+ap; }
+  function daysUntil(ds){ if(!ds) return 9999; var n=new Date(); var today=new Date(n.getFullYear(),n.getMonth(),n.getDate()); var t=new Date(ds+"T00:00:00"); return Math.round((t-today)/86400000); }
+  function urgency(ds){ var d=daysUntil(ds);
+    if(d<0) return {text:Math.abs(d)+"d ago",tone:"past"};
+    if(d===0) return {text:"TODAY",tone:"today"};
+    if(d===1) return {text:"TOMORROW",tone:"soon"};
+    if(d<=6) return {text:"in "+d+" days",tone:"soon"};
+    return {text:"in "+d+" days",tone:"far"};
+  }
+  function inCount(t){ var n=0,r=t.rsvp||{}; for(var k in r){ if(r[k]==="in") n++; } return n; }
+  function sortedTimes(){ return state.teeTimes.slice().sort(function(a,b){ return (a.date+(a.time||"")).localeCompare(b.date+(b.time||"")); }); }
+  function upcoming(){ return sortedTimes().filter(function(t){return daysUntil(t.date)>=0;}); }
+  function past(){ return sortedTimes().filter(function(t){return daysUntil(t.date)<0;}).reverse(); }
+  function playerById(id){ for(var i=0;i<state.players.length;i++){ if(state.players[i].id===id) return state.players[i]; } return null; }
+
+  /* ---------- actions ---------- */
+  function addPlayer(name,phone){
+    name=(name||"").trim(); if(!name) return;
+    state.players.push({id:uid(),name:name,phone:(phone||"").trim(),color:PALETTE[state.players.length%PALETTE.length]});
+    save(); renderAll();
+  }
+  /* ---------- admin ---------- */
+  function getPin(){ try{ return localStorage.getItem(KEY_PIN)||""; }catch(e){ return ""; } }
+  function setPin(){
+    var p=prompt("Set an admin PIN. Others will need it to remove members.\n\nLeave blank to clear the PIN:", "");
+    if(p===null) return;
+    try{ if(p) localStorage.setItem(KEY_PIN,p); else localStorage.removeItem(KEY_PIN); }catch(e){}
+    renderRoster();
+    alert(p?"Admin PIN set.":"Admin PIN cleared.");
+  }
+  function unlockAdmin(){
+    var pin=getPin();
+    if(!pin){ ui.admin=true; if(!ui.rosterOpen) ui.rosterOpen=true; renderAll(); return; }
+    var e=prompt("Enter admin PIN to remove members:");
+    if(e===null) return;
+    if(e===pin){ ui.admin=true; if(!ui.rosterOpen) ui.rosterOpen=true; renderAll(); }
+    else alert("Incorrect PIN.");
+  }
+  function lockAdmin(){ ui.admin=false; renderAll(); }
+  function toggleAdmin(){ if(ui.admin) lockAdmin(); else unlockAdmin(); }
+
+  /* ---------- owner (who sees the Admin button) ---------- */
+  function isOwnerStored(){ try{ return localStorage.getItem("hmcc_owner")==="1"; }catch(e){ return false; } }
+  function claimOwner(){ try{ localStorage.setItem("hmcc_owner","1"); }catch(e){} ui.owner=true; if(!getPin()) ui.admin=true; ui.rosterOpen=true; renderAll(); }
+  function releaseOwner(){ if(!confirm("Hide the Admin button on this device? You can re-enable it by tapping the ⛳ flag 5 times.")) return; try{ localStorage.removeItem("hmcc_owner"); }catch(e){} ui.owner=false; ui.admin=false; renderAll(); }
+
+  /* ---------- notifications + activity ---------- */
+  var KEY_NOTIF="hmcc_notif", KEY_ACT="hmcc_activity", KEY_SEEN="hmcc_act_seen";
+  var notif={enabled:false,onJoin:true,onDrop:true};
+  var activity=[];
+  function loadNotif(){ try{ var r=localStorage.getItem(KEY_NOTIF); if(r){ var d=JSON.parse(r); notif.enabled=!!d.enabled; notif.onJoin=d.onJoin!==false; notif.onDrop=d.onDrop!==false; } }catch(e){} }
+  function saveNotif(){ try{ localStorage.setItem(KEY_NOTIF,JSON.stringify(notif)); }catch(e){} }
+  function loadActivity(){ try{ var r=localStorage.getItem(KEY_ACT); if(r) activity=JSON.parse(r)||[]; }catch(e){ activity=[]; } }
+  function saveActivity(){ try{ localStorage.setItem(KEY_ACT,JSON.stringify(activity.slice(0,40))); }catch(e){} }
+  function lastSeen(){ try{ return +localStorage.getItem(KEY_SEEN)||0; }catch(e){ return 0; } }
+  function markSeen(){ try{ localStorage.setItem(KEY_SEEN,String(Date.now())); }catch(e){} }
+  function unreadCount(){ var s=lastSeen(); var n=0; for(var i=0;i<activity.length;i++){ if(activity[i].ts>s) n++; } return n; }
+  function actTime(ts){ try{ return new Date(ts).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}); }catch(e){ return ""; } }
+
+  function logActivity(kind,p,t){
+    if(!p||!t) return;
+    activity.unshift({kind:kind,who:p.name,course:t.course,date:t.date,time:t.time,ts:Date.now()});
+    if(activity.length>40) activity=activity.slice(0,40);
+    saveActivity(); fireNotification(kind,p,t);
+  }
+  function fireNotification(kind,p,t){
+    if(!notif.enabled) return;
+    if(kind==="join"&&!notif.onJoin) return;
+    if(kind==="drop"&&!notif.onDrop) return;
+    if(typeof Notification==="undefined"||Notification.permission!=="granted") return;
+    var verb=kind==="join"?"joined":"dropped out of";
+    try{ new Notification("⛳ HMCC Tee Times",{ body:p.name+" "+verb+" "+fmtDate(t.date)+" "+fmtTime(t.time)+" · "+t.course }); }catch(e){}
+  }
+  function enableNotifications(){
+    if(typeof Notification==="undefined"){ alert("This browser doesn't support pop-up alerts, but the activity log below still records every join and drop."); return; }
+    if(Notification.permission==="granted"){ notif.enabled=!notif.enabled; saveNotif(); renderNotif(); return; }
+    if(Notification.permission==="denied"){ alert("Pop-up alerts are blocked for this page in your browser settings. The activity log will still record changes."); notif.enabled=false; saveNotif(); renderNotif(); return; }
+    Notification.requestPermission().then(function(perm){
+      notif.enabled=(perm==="granted"); saveNotif(); renderNotif();
+      if(perm==="granted"){ try{ new Notification("⛳ HMCC Tee Times",{body:"Alerts on — you'll be pinged when someone joins or drops."}); }catch(e){} }
+    });
+  }
+
+  function removePlayer(id){
+    if(!ui.admin) return;
+    var p=playerById(id);
+    if(!confirm("Remove "+(p?p.name:"this member")+" from the crew?")) return;
+    state.players=state.players.filter(function(pl){return pl.id!==id;});
+    state.teeTimes.forEach(function(t){
+      if(t.rsvp&&t.rsvp[id]==="in"&&daysUntil(t.date)>=0) logActivity("drop",p,t);
+      if(t.rsvp) delete t.rsvp[id];
+    });
+    save(); renderAll();
+  }
+  function saveTee(data){
+    if(data.id){
+      state.teeTimes=state.teeTimes.map(function(t){ return t.id===data.id?Object.assign({},t,data):t; });
+    } else {
+      state.teeTimes.push({id:uid(),course:data.course,date:data.date,time:data.time,size:data.size,notes:data.notes,rsvp:{}});
+    }
+    ui.formOpen=false; ui.editingId=null; save(); renderAll();
+  }
+  function deleteTee(id){ state.teeTimes=state.teeTimes.filter(function(t){return t.id!==id;}); save(); renderAll(); }
+  function cycleRsvp(teeId,playerId){
+    var t=null; for(var i=0;i<state.teeTimes.length;i++){ if(state.teeTimes[i].id===teeId){t=state.teeTimes[i];break;} }
+    if(!t) return; if(!t.rsvp) t.rsvp={};
+    var cur=t.rsvp[playerId]||""; var next=CYCLE[(CYCLE.indexOf(cur)+1)%CYCLE.length]; t.rsvp[playerId]=next;
+    var p=playerById(playerId);
+    if(next==="in"&&cur!=="in") logActivity("join",p,t);
+    else if(cur==="in"&&next!=="in") logActivity("drop",p,t);
+    save(); renderList(); renderAlert(); renderNotif();
+  }
+
+  /* ---------- render ---------- */
+  function renderAlert(){
+    var up=upcoming(); var nx=up[0];
+    var need=up.filter(function(t){ return daysUntil(t.date)<=7 && inCount(t)<(t.size||4); });
+    var el=document.getElementById("alert");
+    if(!nx && need.length===0){ el.innerHTML=""; return; }
+    var html='<div class="alert"><span class="ico">🔔</span><div>';
+    if(nx){ var u=urgency(nx.date);
+      html+='<div><strong>Next up:</strong> '+esc(fmtDate(nx.date))+' at '+esc(fmtTime(nx.time))+' · '+esc(nx.course)+' <span class="pill '+u.tone+'">'+u.text+'</span></div>';
+    }
+    if(need.length){ html+='<div class="warn">'+need.length+' tee time'+(need.length>1?'s':'')+' this week still need'+(need.length>1?'':'s')+' players.</div>'; }
+    html+='</div></div>';
+    el.innerHTML=html;
+  }
+
+  var formAvatar=null;
+
+  function avatarHTML(p,sz){
+    sz=sz||40;
+    if(p.avatar) return '<img class="av" style="width:'+sz+'px;height:'+sz+'px" src="'+p.avatar+'" alt="">';
+    var init=esc(((p.name||"?").trim().charAt(0)||"?").toUpperCase());
+    return '<span class="av-init" style="width:'+sz+'px;height:'+sz+'px;background:'+p.color+';font-size:'+Math.round(sz*0.42)+'px">'+init+'</span>';
+  }
+
+  function resizeImage(file,cb){
+    var reader=new FileReader();
+    reader.onload=function(){
+      var img=new Image();
+      img.onload=function(){
+        var side=Math.min(img.width,img.height), out=Math.min(160,side);
+        var c=document.createElement("canvas"); c.width=out; c.height=out;
+        var ctx=c.getContext("2d");
+        ctx.drawImage(img,(img.width-side)/2,(img.height-side)/2,side,side,0,0,out,out);
+        try{ cb(c.toDataURL("image/jpeg",0.82)); }catch(e){ cb(null); }
+      };
+      img.onerror=function(){ cb(null); };
+      img.src=reader.result;
+    };
+    reader.onerror=function(){ cb(null); };
+    reader.readAsDataURL(file);
+  }
+
+  function openMemberForm(id){
+    ui.memberFormOpen=true; ui.editingMemberId=id||null;
+    formAvatar = id ? ((playerById(id)||{}).avatar||null) : null;
+    ui.rosterOpen=true; renderAll();
+    var m=document.getElementById("memberFormMount"); if(m&&m.scrollIntoView) m.scrollIntoView({behavior:"smooth",block:"center"});
+  }
+  function saveMember(data){
+    var nm=(data.name||"").trim(); if(!nm) return;
+    if(data.id){
+      state.players=state.players.map(function(p){ return p.id===data.id?Object.assign({},p,{name:nm,phone:(data.phone||"").trim(),avatar:data.avatar||null}):p; });
+    } else {
+      state.players.push({id:uid(),name:nm,phone:(data.phone||"").trim(),avatar:data.avatar||null,color:PALETTE[state.players.length%PALETTE.length]});
+    }
+    ui.memberFormOpen=false; ui.editingMemberId=null; formAvatar=null; save(); renderAll();
+  }
+  function renderMemberForm(){
+    var mount=document.getElementById("memberFormMount"); if(!mount) return;
+    if(!ui.memberFormOpen){ mount.innerHTML=""; return; }
+    var ed = ui.editingMemberId ? playerById(ui.editingMemberId) : null;
+    var hasAv = !!formAvatar;
+    var removeBtn = (ed && ui.admin) ? '<button class="btn ghost" id="mRemove" style="color:#9c3d3d;border-color:#dd9a9a">Remove</button>' : '';
+    mount.innerHTML=
+      '<div class="form">'+
+      '<div class="field"><span class="lab">Name</span><input id="mName" value="'+esc(ed?ed.name:"")+'" placeholder="Buddy\u2019s name"></div>'+
+      '<div class="field" style="margin-top:10px"><span class="lab">Phone (optional)</span><input id="mPhone" type="tel" value="'+esc(ed?(ed.phone||""):"")+'" placeholder="(914) 555-1234"></div>'+
+      '<div class="field" style="margin-top:10px"><span class="lab">Photo (optional)</span>'+
+        '<label class="upload">\uD83D\uDCF7 Upload photo<input id="mPhoto" type="file" accept="image/*" style="display:none"></label>'+
+        '<div class="photo-prev" id="mPrev" style="display:'+(hasAv?'flex':'none')+'"><img id="mAvatarImg" src="'+(formAvatar||"")+'"><button class="link" id="mRemovePhoto">Remove photo</button></div>'+
+      '</div>'+
+      '<div class="form-actions"><button class="btn grow" id="mSave">\u2713 '+(ed?"Save":"Add member")+'</button>'+removeBtn+'<button class="btn ghost" id="mCancel">Cancel</button></div>'+
+      '</div>';
+    document.getElementById("mPhoto").addEventListener("change",function(e){
+      var f=e.target.files&&e.target.files[0]; if(!f) return;
+      resizeImage(f,function(data){ if(!data){ alert("Couldn't read that image. Try another one."); return; }
+        formAvatar=data; document.getElementById("mAvatarImg").src=data; document.getElementById("mPrev").style.display="flex"; });
+    });
+    document.getElementById("mRemovePhoto").addEventListener("click",function(){ formAvatar=null; document.getElementById("mPrev").style.display="none"; document.getElementById("mPhoto").value=""; });
+    document.getElementById("mSave").addEventListener("click",function(){
+      var nm=document.getElementById("mName").value.trim(); if(!nm){ alert("Please enter a name."); return; }
+      saveMember({ id:ui.editingMemberId, name:nm, phone:document.getElementById("mPhone").value, avatar:formAvatar });
+    });
+    document.getElementById("mCancel").addEventListener("click",function(){ ui.memberFormOpen=false; ui.editingMemberId=null; formAvatar=null; renderAll(); });
+    if(removeBtn){ document.getElementById("mRemove").addEventListener("click",function(){ var id=ui.editingMemberId; ui.memberFormOpen=false; ui.editingMemberId=null; formAvatar=null; removePlayer(id); }); }
+  }
+
+  function renderRoster(){
+    document.getElementById("crewCount").textContent=state.players.length;
+    document.getElementById("rosterChev").textContent=ui.rosterOpen?"▴":"▾";
+    document.getElementById("rosterBody").style.display=ui.rosterOpen?"block":"none";
+
+    var ab=document.getElementById("adminBtn");
+    if(ab){ ab.style.display=ui.owner?"":"none"; ab.textContent=(ui.admin?"🔓 Admin":"🔒 Admin"); ab.classList.toggle("admin-on",ui.admin); }
+
+    var banner=document.getElementById("adminBanner");
+    if(banner){
+      if(!ui.owner){ banner.innerHTML=""; }
+      else if(ui.admin){
+        banner.innerHTML='<div class="admin-note">🔓 <strong>Admin mode on</strong> — tap ✕ next to a name to remove them. <button class="link" data-act="setpin">Set / change PIN</button> · <button class="link" data-act="lock">Lock</button> · <button class="link" data-act="release">Hide on this device</button></div>';
+      } else {
+        banner.innerHTML='<div class="admin-note locked">🔒 Removing members is locked. <button class="link" data-act="unlock">Unlock as admin</button></div>';
+      }
+    }
+
+    renderMemberForm();
+
+    var list=document.getElementById("crewList");
+    if(list){
+      if(!state.players.length){ list.innerHTML='<div class="empty">No members yet — tap “Add member” to start.</div>'; }
+      else{
+        list.innerHTML=state.players.map(function(p){
+          var tel=(p.phone||"").replace(/[^0-9+]/g,"");
+          var phone = p.phone ? '<a class="m-phone" href="tel:'+esc(tel)+'">'+esc(p.phone)+'</a>' : '<span class="m-phone empty">No number</span>';
+          var rm = ui.admin ? '<button class="m-act" data-rm="'+p.id+'" title="Remove">✕</button>' : '';
+          return '<div class="member">'+avatarHTML(p,40)+
+                 '<div class="m-info"><div class="m-name">'+esc(p.name)+'</div>'+phone+'</div>'+
+                 '<div class="m-acts"><button class="m-act" data-medit="'+p.id+'" title="Edit">✏️</button>'+rm+'</div></div>';
+        }).join("");
+      }
+    }
+  }
+
+  function renderTabs(){
+    var up=upcoming().length, pa=past().length;
+    var btns=document.querySelectorAll("#tabs .tab");
+    btns.forEach(function(b){
+      var f=b.getAttribute("data-f");
+      b.classList.toggle("active", ui.filter===f);
+      if(f==="upcoming") b.textContent="Upcoming ("+up+")";
+      if(f==="past") b.textContent="Past ("+pa+")";
+    });
+    document.getElementById("showForm").style.display=ui.formOpen?"none":"";
+  }
+
+  function teeCardHTML(t){
+    var u=urgency(t.date), ins=inCount(t), size=t.size||4, need=size-ins;
+    var cls="tee t-"+u.tone;
+    var fillW=Math.min(100,(ins/size)*100);
+    var label=ins+"/"+size+" in"+(ins>=size?" · full ⛳":(need>0?" · need "+need:""));
+    var h='<div class="'+cls+'">';
+    h+='<div class="tee-top"><div>';
+    h+='<div class="course-row">📍 <span class="course">'+esc(t.course)+'</span></div>';
+    h+='<div class="meta"><span>📅 '+esc(fmtDate(t.date))+'</span><span>🕐 '+esc(fmtTime(t.time))+'</span><span class="pill '+u.tone+'">'+u.text+'</span></div>';
+    if(t.notes) h+='<div class="notes">'+esc(t.notes)+'</div>';
+    h+='</div><div class="icons"><button class="icon" data-edit="'+t.id+'">✏️</button><button class="icon" data-del="'+t.id+'">🗑️</button></div></div>';
+    h+='<div class="status"><div class="track"><div class="fill'+(ins>=size?" full":"")+'" style="width:'+fillW+'%"></div></div><span class="fill-label">'+label+'</span></div>';
+    h+='<div class="tee-actions"><button class="ta" data-cal="'+t.id+'">📅 Calendar</button><button class="ta" data-text="'+t.id+'">💬 Text crew</button>';
+    if(u.tone!=="past"){ var nr=noReply(t).length; if(nr>0) h+='<button class="ta amber" data-nudge="'+t.id+'">👋 Nudge ('+nr+')</button>'; }
+    h+='</div>';
+    h+='<button class="manage" data-exp="'+t.id+'">'+(ui.expanded[t.id]?"Hide RSVPs ▴":"Manage RSVPs ▾")+'</button>';
+    if(ui.expanded[t.id]){
+      h+='<div class="rsvp-wrap">';
+      if(!state.players.length){ h+='<span class="empty">Add players to the crew first.</span>'; }
+      state.players.forEach(function(p){
+        var st=(t.rsvp&&t.rsvp[p.id])||"";
+        h+='<button class="rsvp '+st+'" data-rsvp="'+t.id+'|'+p.id+'">'+avatarHTML(p,22)+'<span class="nm">'+esc(p.name)+'</span><span class="st">'+STLABEL[st]+'</span></button>';
+      });
+      if(state.players.length) h+='<div class="legend">Tap a name to cycle: — → IN → MAYBE → OUT</div>';
+      h+='</div>';
+    }
+    h+='</div>';
+    return h;
+  }
+
+  function renderList(){
+    var data = ui.filter==="upcoming"?upcoming():ui.filter==="past"?past():sortedTimes();
+    var el=document.getElementById("list");
+    if(!data.length){
+      el.innerHTML='<div class="big-empty"><div class="e-ico">📅</div><p>No '+(ui.filter==="past"?"past":"upcoming")+' tee times.</p></div>';
+      return;
+    }
+    el.innerHTML=data.map(teeCardHTML).join("");
+  }
+
+  function renderForm(){
+    var mount=document.getElementById("formMount");
+    if(!ui.formOpen){ mount.innerHTML=""; return; }
+    var ed = ui.editingId ? (function(){ for(var i=0;i<state.teeTimes.length;i++){ if(state.teeTimes[i].id===ui.editingId) return state.teeTimes[i]; } return null; })() : null;
+    var course = ed?ed.course:"Harrison Meadows";
+    var sizes=[2,3,4,5,6,8,12].map(function(n){ return '<option value="'+n+'"'+((ed?ed.size:4)===n?' selected':'')+'>'+n+' players</option>'; }).join("");
+    mount.innerHTML=
+      '<div class="form">'+
+      '<div class="grid">'+
+        '<label class="field full"><span class="lab">Course</span><input id="fCourse" value="'+esc(course)+'" placeholder="e.g. Harrison Meadows"></label>'+
+        '<label class="field"><span class="lab">Date</span><input id="fDate" type="date" value="'+esc(ed?ed.date:"")+'"></label>'+
+        '<label class="field"><span class="lab">Time</span><input id="fTime" type="time" value="'+esc(ed?ed.time:"")+'"></label>'+
+        '<label class="field full"><span class="lab">Group size</span><select id="fSize">'+sizes+'</select></label>'+
+      '</div>'+
+      '<label class="field" style="margin-top:10px"><span class="lab">Notes (optional)</span><input id="fNotes" value="'+esc(ed?ed.notes:"")+'" placeholder="Carts, bets, shotgun start…"></label>'+
+      '<div class="form-actions"><button class="btn grow" id="fSave">✓ '+(ed?"Save changes":"Add tee time")+'</button><button class="btn ghost" id="fCancel">Cancel</button></div>'+
+      '</div>';
+    document.getElementById("fSave").addEventListener("click",function(){
+      var c=document.getElementById("fCourse").value.trim();
+      var d=document.getElementById("fDate").value;
+      if(!c||!d){ alert("Please enter a course and a date."); return; }
+      saveTee({ id:ui.editingId, course:c, date:d, time:document.getElementById("fTime").value, size:+document.getElementById("fSize").value, notes:document.getElementById("fNotes").value.trim() });
+    });
+    document.getElementById("fCancel").addEventListener("click",function(){ ui.formOpen=false; ui.editingId=null; renderForm(); renderTabs(); });
+  }
+
+  function renderNotif(){
+    var badge=document.getElementById("notifBadge");
+    if(badge){ badge.className="ndot"+(unreadCount()>0?" show":""); }
+    document.getElementById("notifChev").textContent=ui.notifOpen?"▴":"▾";
+    document.getElementById("notifBody").style.display=ui.notifOpen?"block":"none";
+    var tg=document.getElementById("notifEnable"); if(tg) tg.classList.toggle("on",notif.enabled);
+    var j=document.getElementById("notifJoin"), d=document.getElementById("notifDrop");
+    if(j) j.checked=notif.onJoin; if(d) d.checked=notif.onDrop;
+    var log=document.getElementById("activityLog");
+    if(log){
+      if(!activity.length){ log.innerHTML='<div class="empty">No activity yet. Joins and drops will appear here.</div>'; }
+      else{
+        log.innerHTML=activity.map(function(a){
+          var icon=a.kind==="join"?"✅":"⚠️", verb=a.kind==="join"?"joined":"dropped out";
+          return '<div class="act '+a.kind+'"><span class="ai">'+icon+'</span><div><div><strong>'+esc(a.who)+'</strong> '+verb+' — '+esc(fmtDate(a.date))+' '+esc(fmtTime(a.time))+'</div><div class="at">'+esc(a.course)+' · '+actTime(a.ts)+'</div></div></div>';
+        }).join("");
+      }
+    }
+  }
+
+  function renderAll(){ renderAlert(); renderRoster(); renderNotif(); renderTabs(); renderForm(); renderList(); }
+
+  /* ---------- group text ---------- */
+  function copySummary(){
+    var up=upcoming().slice(0,6);
+    var txt;
+    if(!up.length){ txt="No upcoming tee times yet."; }
+    else{
+      txt="Upcoming tee times:\n\n"+up.map(function(t){
+        var ins=state.players.filter(function(p){ return t.rsvp&&t.rsvp[p.id]==="in"; }).map(function(p){return p.name;});
+        var need=(t.size||4)-ins.length;
+        return "⛳ "+fmtDate(t.date)+" "+fmtTime(t.time)+" — "+t.course+"\n   In: "+(ins.join(", ")||"nobody yet")+(need>0?"  (need "+need+" more)":"  ✅ full");
+      }).join("\n\n");
+    }
+    var done=function(){ var l=document.getElementById("copyLbl"); var b=document.getElementById("copyBtn"); l.textContent="Copied"; b.firstChild.textContent="✓ "; setTimeout(function(){ l.textContent="Group text"; b.firstChild.textContent="📋 "; },1800); };
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done,function(){ fallbackCopy(txt); done(); }); }
+    else { fallbackCopy(txt); done(); }
+  }
+  function fallbackCopy(txt){ var ta=document.createElement("textarea"); ta.value=txt; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");}catch(e){} document.body.removeChild(ta); }
+
+  /* ---------- calendar (.ics) ---------- */
+  function teeById(id){ for(var i=0;i<state.teeTimes.length;i++){ if(state.teeTimes[i].id===id) return state.teeTimes[i]; } return null; }
+  function pad2(n){ return n<10?"0"+n:""+n; }
+  function fmtICS(d){ return d.getFullYear()+pad2(d.getMonth()+1)+pad2(d.getDate())+"T"+pad2(d.getHours())+pad2(d.getMinutes())+"00"; }
+  function icsEsc(s){ return String(s||"").replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\n/g,"\\n"); }
+  function downloadFile(name,mime,text){
+    var blob=new Blob([text],{type:mime}); var url=URL.createObjectURL(blob);
+    var a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); },1500);
+  }
+  function addToCalendar(id){
+    var t=teeById(id); if(!t) return;
+    var ins=state.players.filter(function(p){ return t.rsvp&&t.rsvp[p.id]==="in"; }).map(function(p){return p.name;});
+    var desc="Group: "+(ins.length?ins.join(", "):"TBD")+" ("+ins.length+"/"+(t.size||4)+" in)";
+    var L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//HMCC Tee Time Tracker//EN","CALSCALE:GREGORIAN","BEGIN:VEVENT","UID:"+t.id+"@hmcc","DTSTAMP:"+fmtICS(new Date())];
+    if(t.time){
+      var start=new Date(t.date+"T"+t.time+":00"); var end=new Date(start.getTime()+4.5*3600000);
+      L.push("DTSTART:"+fmtICS(start),"DTEND:"+fmtICS(end));
+    } else {
+      var p=t.date.split("-"); L.push("DTSTART;VALUE=DATE:"+p[0]+p[1]+p[2]);
+    }
+    L.push("SUMMARY:Golf @ "+icsEsc(t.course),"LOCATION:"+icsEsc(t.course),"DESCRIPTION:"+icsEsc(desc));
+    if(t.notes) L.push("DESCRIPTION:"+icsEsc(desc+" — "+t.notes));
+    L.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:Tee time soon","TRIGGER:-PT2H","END:VALARM","END:VEVENT","END:VCALENDAR");
+    downloadFile("HMCC_"+(t.course||"round").replace(/[^a-z0-9]+/ig,"")+"_"+t.date+".ics","text/calendar",L.join("\r\n"));
+  }
+
+  /* ---------- text crew / nudge ---------- */
+  function noReply(t){ return state.players.filter(function(p){ return !(t.rsvp&&t.rsvp[p.id]); }); }
+  function phonesOf(arr){ return arr.filter(function(p){return p.phone;}).map(function(p){return p.phone.replace(/[^0-9+]/g,"");}); }
+  function openSms(nums,body){
+    if(!nums.length){ alert("No phone numbers on file. Tap ✏️ on a member to add one."); return; }
+    var a=document.createElement("a"); a.href="sms:"+nums.join(",")+"?&body="+encodeURIComponent(body);
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
+  function textCrew(id){
+    var t=teeById(id); if(!t) return;
+    var ins=state.players.filter(function(p){ return t.rsvp&&t.rsvp[p.id]==="in"; }).map(function(p){return p.name;});
+    var body="⛳ HMCC golf — "+t.course+" "+fmtDate(t.date)+(t.time?(" "+fmtTime(t.time)):"")+". "+ins.length+"/"+(t.size||4)+" in"+(ins.length?(" ("+ins.join(", ")+")"):"")+". You playing?";
+    openSms(phonesOf(state.players),body);
+  }
+  function nudgeTee(id){
+    var t=teeById(id); if(!t) return;
+    var pending=noReply(t);
+    var body="⛳ "+t.course+" "+fmtDate(t.date)+(t.time?(" "+fmtTime(t.time)):"")+" — you in? Let me know 👍";
+    openSms(phonesOf(pending),body);
+  }
+
+  /* ---------- backup / restore ---------- */
+  function doBackup(){
+    var data=JSON.stringify({app:"HMCC Tee Time Tracker",version:1,exported:new Date().toISOString(),players:state.players,teeTimes:state.teeTimes,notif:notif},null,2);
+    downloadFile("HMCC_backup_"+new Date().toISOString().slice(0,10)+".json","application/json",data);
+  }
+  function doRestore(file){
+    var r=new FileReader();
+    r.onload=function(){
+      var d; try{ d=JSON.parse(r.result); }catch(e){ alert("That file isn't readable as a backup."); return; }
+      if(!d||!Array.isArray(d.players)||!Array.isArray(d.teeTimes)){ alert("That doesn't look like a valid HMCC backup file."); return; }
+      if(!confirm("Restore this backup? It will replace your current crew ("+state.players.length+") and tee times ("+state.teeTimes.length+") with the backup's "+d.players.length+" members and "+d.teeTimes.length+" tee times.")) return;
+      state.players=d.players; state.teeTimes=d.teeTimes;
+      if(d.notif){ notif.enabled=!!d.notif.enabled; notif.onJoin=d.notif.onJoin!==false; notif.onDrop=d.notif.onDrop!==false; saveNotif(); }
+      save(); renderAll(); alert("Backup restored — "+d.players.length+" members and "+d.teeTimes.length+" tee times.");
+    };
+    r.onerror=function(){ alert("Couldn't read that file."); };
+    r.readAsText(file);
+  }
+
+  /* ---------- events (delegated) ---------- */
+  document.getElementById("rosterToggle").addEventListener("click",function(){ ui.rosterOpen=!ui.rosterOpen; renderRoster(); });
+  document.getElementById("addMemberBtn").addEventListener("click",function(){ openMemberForm(null); });
+  document.getElementById("crewList").addEventListener("click",function(e){
+    var t=e.target; while(t&&t!==this&&!(t.getAttribute&&(t.getAttribute("data-medit")||t.getAttribute("data-rm")))) t=t.parentNode;
+    if(!t||t===this) return;
+    var ed=t.getAttribute("data-medit"), rm=t.getAttribute("data-rm");
+    if(ed) openMemberForm(ed); else if(rm) removePlayer(rm);
+  });
+  document.getElementById("adminBtn").addEventListener("click",function(){ toggleAdmin(); });
+  document.getElementById("rosterBody").addEventListener("click",function(e){
+    var b=e.target; while(b&&b!==this&&!(b.getAttribute&&b.getAttribute("data-act"))) b=b.parentNode;
+    if(!b||b===this) return;
+    var act=b.getAttribute("data-act");
+    if(act==="lock") lockAdmin(); else if(act==="unlock") unlockAdmin(); else if(act==="setpin") setPin(); else if(act==="release") releaseOwner();
+  });
+
+  /* notifications */
+  document.getElementById("notifToggle").addEventListener("click",function(){
+    ui.notifOpen=!ui.notifOpen;
+    if(ui.notifOpen) markSeen();
+    renderNotif();
+  });
+  document.getElementById("notifEnable").addEventListener("click",enableNotifications);
+  document.getElementById("notifJoin").addEventListener("change",function(e){ notif.onJoin=e.target.checked; saveNotif(); });
+  document.getElementById("notifDrop").addEventListener("change",function(e){ notif.onDrop=e.target.checked; saveNotif(); });
+  document.getElementById("clearAct").addEventListener("click",function(){ if(confirm("Clear the activity log?")){ activity=[]; saveActivity(); markSeen(); renderNotif(); } });
+
+  /* secret owner claim: tap the flag badge 5x */
+  var tapN=0,tapT=null;
+  var badgeEl=document.querySelector(".badge");
+  if(badgeEl) badgeEl.addEventListener("click",function(){
+    tapN++; if(tapT) clearTimeout(tapT); tapT=setTimeout(function(){ tapN=0; },2500);
+    if(tapN>=5){ tapN=0; if(!ui.owner){ claimOwner(); alert("Admin controls enabled on this device. The crew won't see them on theirs."); } }
+  });
+
+  document.getElementById("tabs").addEventListener("click",function(e){
+    var f=e.target.getAttribute&&e.target.getAttribute("data-f");
+    if(f){ ui.filter=f; renderTabs(); renderList(); }
+  });
+  document.getElementById("showForm").addEventListener("click",function(){ ui.formOpen=true; ui.editingId=null; ui.filter="upcoming"; renderTabs(); renderForm(); });
+
+  document.getElementById("list").addEventListener("click",function(e){
+    var t=e.target; while(t && t!==this && !(t.getAttribute&&(t.getAttribute("data-edit")||t.getAttribute("data-del")||t.getAttribute("data-exp")||t.getAttribute("data-rsvp")||t.getAttribute("data-cal")||t.getAttribute("data-text")||t.getAttribute("data-nudge")))){ t=t.parentNode; }
+    if(!t||t===this) return;
+    var ed=t.getAttribute("data-edit"), del=t.getAttribute("data-del"), exp=t.getAttribute("data-exp"), rs=t.getAttribute("data-rsvp");
+    var cal=t.getAttribute("data-cal"), txt=t.getAttribute("data-text"), nud=t.getAttribute("data-nudge");
+    if(ed){ ui.formOpen=true; ui.editingId=ed; renderForm(); renderTabs(); var fm=document.getElementById("formMount"); if(fm&&fm.scrollIntoView) fm.scrollIntoView({behavior:"smooth",block:"center"}); }
+    else if(del){ if(confirm("Delete this tee time?")) deleteTee(del); }
+    else if(exp){ ui.expanded[exp]=!ui.expanded[exp]; renderList(); }
+    else if(rs){ var parts=rs.split("|"); cycleRsvp(parts[0],parts[1]); }
+    else if(cal){ addToCalendar(cal); }
+    else if(txt){ textCrew(txt); }
+    else if(nud){ nudgeTee(nud); }
+  });
+
+  document.getElementById("copyBtn").addEventListener("click",copySummary);
+
+  document.getElementById("backupBtn").addEventListener("click",doBackup);
+  document.getElementById("restoreInput").addEventListener("change",function(e){ var f=e.target.files&&e.target.files[0]; if(f) doRestore(f); e.target.value=""; });
+
+  /* ---------- init ---------- */
+  load();
+  loadNotif();
+  loadActivity();
+  ui.owner = isOwnerStored();
+  if(/(?:^|[#&\/])(admin|owner)\b/i.test(location.hash)){ try{ localStorage.setItem("hmcc_owner","1"); }catch(e){} ui.owner=true; }
+  if(ui.owner && !getPin()) ui.admin=true;
+  if(notif.enabled && (typeof Notification==="undefined" || Notification.permission!=="granted")) notif.enabled=false;
+  renderAll();
+})();
+</script>
+</body>
+</html>
