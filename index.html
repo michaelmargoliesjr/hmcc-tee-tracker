@@ -249,7 +249,7 @@
   </div>
 
   <footer>
-    <div><strong>HMCC Tee Time Tracker</strong> · v1.3</div>
+    <div><strong>HMCC Tee Time Tracker</strong> · v1.4</div>
     <div style="margin-top:5px">Saves on this device automatically. Adding new features won't erase your data — but when you open an updated version, tap <strong>Backup</strong> here first, then <strong>Restore</strong> it in the new file to carry everything over.</div>
   </footer>
 </div>
@@ -542,7 +542,7 @@
     h+='</div><div class="icons"><button class="icon" data-edit="'+t.id+'">✏️</button><button class="icon" data-del="'+t.id+'">🗑️</button></div></div>';
     h+='<div class="status"><div class="track"><div class="fill'+(ins>=size?" full":"")+'" style="width:'+fillW+'%"></div></div><span class="fill-label">'+label+'</span></div>';
     h+='<div class="tee-actions"><button class="ta" data-cal="'+t.id+'">📅 Calendar</button><button class="ta" data-text="'+t.id+'">💬 Text crew</button>';
-    if(u.tone!=="past"){ var nr=noReply(t).length; if(nr>0) h+='<button class="ta amber" data-nudge="'+t.id+'">👋 Nudge ('+nr+')</button>'; }
+    if(u.tone!=="past"){ var nt=nudgeTargets(t).length; if(nt>0) h+='<button class="ta amber" data-nudge="'+t.id+'">👋 Nudge ('+nt+')</button>'; }
     h+='</div>';
     h+='<button class="manage" data-exp="'+t.id+'">'+(ui.expanded[t.id]?"Hide RSVPs ▴":"Manage RSVPs ▾")+'</button>';
     if(ui.expanded[t.id]){
@@ -709,23 +709,37 @@
   }
 
   /* ---------- text crew / nudge ---------- */
-  function noReply(t){ return state.players.filter(function(p){ return !(t.rsvp&&t.rsvp[p.id]); }); }
+  function membersInTee(t){ return state.players.filter(function(p){ return t.rsvp&&t.rsvp[p.id]==="in"; }); }
+  function inAnyTeeOnDate(pid,date){ for(var i=0;i<state.teeTimes.length;i++){ var u=state.teeTimes[i]; if(u.date===date && u.rsvp && u.rsvp[pid]==="in") return true; } return false; }
+  function nudgeTargets(t){ return state.players.filter(function(p){ return !inAnyTeeOnDate(p.id,t.date); }); }
   function phonesOf(arr){ return arr.filter(function(p){return p.phone;}).map(function(p){return p.phone.replace(/[^0-9+]/g,"");}); }
+  function noPhoneNames(arr){ return arr.filter(function(p){return !p.phone;}).map(function(p){return p.name;}); }
   function openSms(nums,body){
-    if(!nums.length){ alert("No phone numbers on file. Tap ✏️ on a member to add one."); return; }
     var a=document.createElement("a"); a.href="sms:"+nums.join(",")+"?&body="+encodeURIComponent(body);
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   }
   function textCrew(id){
     var t=teeById(id); if(!t) return;
-    var body="⛳ HMCC golf — "+t.course+" "+fmtDate(t.date)+(t.time?(" "+fmtTime(t.time)):"")+". "+inCount(t)+"/"+(t.size||4)+" in. You playing?";
-    openSms(phonesOf(state.players),body);
+    var ins=membersInTee(t);
+    if(!ins.length){ alert("Nobody's marked “in” for this tee time yet. Open Manage RSVPs and set who's playing first."); return; }
+    var nums=phonesOf(ins);
+    if(!nums.length){ alert("The players who are in ("+ins.map(function(p){return p.name;}).join(", ")+") don't have phone numbers saved. Tap ✏️ on a member to add one."); return; }
+    var missing=noPhoneNames(ins);
+    var body="⛳ HMCC golf — "+t.course+" "+fmtDate(t.date)+(t.time?(" "+fmtTime(t.time)):"")+". You're in the group ("+inCount(t)+"/"+(t.size||4)+"). See you on the first tee!";
+    openSms(nums,body);
+    if(missing.length) setTimeout(function(){ alert("Heads up — no number on file for: "+missing.join(", ")+" (not texted)."); },400);
   }
   function nudgeTee(id){
     var t=teeById(id); if(!t) return;
-    var pending=noReply(t);
-    var body="⛳ "+t.course+" "+fmtDate(t.date)+(t.time?(" "+fmtTime(t.time)):"")+" — you in? Let me know 👍";
-    openSms(phonesOf(pending),body);
+    var targets=nudgeTargets(t);
+    if(!targets.length){ alert("Everyone's already booked into a group that day — nobody to nudge."); return; }
+    var nums=phonesOf(targets);
+    if(!nums.length){ alert("The crew free that day don't have phone numbers saved. Tap ✏️ on a member to add one."); return; }
+    var missing=noPhoneNames(targets);
+    var open=(t.size||4)-inCount(t);
+    var body="⛳ "+t.course+" "+fmtDate(t.date)+(t.time?(" "+fmtTime(t.time)):"")+" — "+(open>0?(open+" spot"+(open>1?"s":"")+" open"):"a spot might open")+". You free to play? 👍";
+    openSms(nums,body);
+    if(missing.length) setTimeout(function(){ alert("Heads up — no number on file for: "+missing.join(", ")+" (not texted)."); },400);
   }
 
   /* ---------- backup / restore ---------- */
